@@ -48,23 +48,15 @@ rm(treat_explain, foo)
 
 # Read in sample ID's from Olink data
 
-#!#!#!#!#!#!#!#!#!
-sample_ADi <- read_csv("data/raw/Dataset_ETEC_IgA_IVTT.AG/Data/ETEC_IgA_IVTT_RawData.csv",
-                       n_max = 1)
-
-# Get ADi Patient Population
-ADi_patients <- sample_ADi %>%
-  select(matches("^\\d\\d-\\d{4}")) %>%
-  colnames(.) %>%
-  str_extract(., "^\\d\\d-\\d{4}") %>%
-  unique(.)
+sample_olink <- read_csv("data/processed/Olink_tidy.csv") %>%
+  pull(unique(subject_ID))
 
 # Filter the treat data
 treat <- treat %>%
-  filter(STUDY_ID %in% ADi_patients)
+  filter(STUDY_ID %in% sample_olink)
 
 # Clean
-rm(sample_ADi, ADi_patients)
+rm(sample_olink)
 
 
 

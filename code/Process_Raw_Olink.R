@@ -23,7 +23,10 @@ colnames(olink_raw_data) <- c("subject_ID", olink[3, 4:95]) # rename columns
 
 # Make tidy
 olink_tidy <- olink_raw_data %>%
+  filter(!str_detect(subject_ID, "^C")) %>%
   gather(protein, olink_value, -subject_ID)
+
+rm(olink_raw_data)
 
 # Add in Limit of detection
 LOD <- as.tibble(t(olink[c(3, 335), 4:95]))
@@ -48,7 +51,14 @@ bad_samples <- qc_data %>%
 olink_tidy <- olink_tidy %>%
   filter(!subject_ID %in% bad_samples)
 
-# Split subject ID and visit number
+# Split subject ID and visit number and clean up
+olink_tidy <- olink_tidy %>%
+  separate(subject_ID, into = c("subject_ID", "visit"), sep = "\\s*\\(") %>%
+  mutate(subject_ID = gsub(" ", "", subject_ID)) %>%
+  mutate(visit = gsub("\\)", "", visit)) %>%
+  mutate(visit = gsub(" ", "", visit)) %>%
+  mutate(visit = gsub("t", "t_", visit))
+  
 
 
 
