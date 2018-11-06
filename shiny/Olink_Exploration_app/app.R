@@ -65,7 +65,8 @@ ui <- fluidPage(
                  helpText("Select patients samples in specified treatment groups"),
                  
                  # Visit
-                 checkboxGroupInput('Visit_Number', 'Visit:', choices = visit_choices, selected = c(1, 4, 5), inline = TRUE),
+                 checkboxGroupInput('Visit_Number', 'Visit:', choices = visit_choices, 
+                                    selected = c("Visit_1", "Visit_4", "Visit_5"), inline = TRUE),
                  helpText("Select patient samples from specified visit number"),
                  
                  # Pathogen Detection
@@ -76,6 +77,9 @@ ui <- fluidPage(
                  uiOutput("secondSelection"),
                  helpText("If", code("All"), ", then all samples included.")))),
       
+      ################
+      ### Proteins ###
+      ################
       fluidRow(
         h3("Proteins"),
         
@@ -84,18 +88,20 @@ ui <- fluidPage(
                  # Proteins of Interest
                  radioButtons("proteins", "Proteins of interest:", choices = c("All", "Select Proteins"), selected = "All"),
                  # Protein output
-                 uiOutput("protein_list"),
-                 helpText("Select proteins of interest")))),
+                 uiOutput("protein_list"))),
+        br(),
+        downloadButton('downloadPlot','Download Plot')),
+      
       
       #sidebar width
       width = 4),
     
     # Plot
     mainPanel(
-      plotOutput("plot", width = "800px", height = "800px")
+      plotOutput("plot", width = "800px", height = "800px"),
       
       # Table to see patients (not needed, but useful for troubleshooting)
-      #fluidRow(column(12,tableOutput('table'))),
+      fluidRow(column(12,tableOutput('table')))
   )))
 
 
@@ -134,7 +140,7 @@ server <- function(input, output) {
   
   olink_matched <- reactive({
     if(input$matched == "matched_samples"){
-      matched_choices(olink, input$Visit_Number)
+      matched_samples(olink, input$Visit_Number)
       
     } else {
       olink
@@ -167,6 +173,16 @@ server <- function(input, output) {
     }
   })
   
+  ###################################
+  ### Merge treat to olink tibble ###
+  ###################################
+  
+  treat_olink <- reactive({
+    
+    olink_matched_protein() %>%
+      left_join(., treat, by =c("subject_ID" = "STUDY_ID"))
+  })
+  
   
   #######################
   ### Treatment Group ###
@@ -175,16 +191,34 @@ server <- function(input, output) {
   # Filter for treatment Group
   treat_tx <- reactive({
     if(input$tx_group == "AZI"){
-      filter(treat, Treatment == "AZI")
+      filter(treat_olink(), Treatment == "AZI")
       
     } else if (input$tx_group == "RIF"){
-      filter(treat, Treatment == "RIF")
+      filter(treat_olink(), Treatment == "RIF")
       
     } else if (input$tx_group == "LEV"){
-      filter(treat, Treatment == "LEV")
+      filter(treat_olink(), Treatment == "LEV")
       
     } else {
-      return(treat)
+      return(treat_olink())
+    }
+  })
+  
+  
+  #######################################
+  ### Render pathogen detection list ###
+  #######################################
+  output$secondSelection <- renderUI({
+    if(input$path_detection == "Culture"){
+      selectInput("pathogens", "Pathogens", choices = culture_choices)
+    } else if (input$path_detection == "Taq"){
+      selectInput("pathogens", "Pathogens", choices = taq_choices)
+    } else if (input$path_detection == "Either"){
+      selectInput("pathogens", "Pathogens", choices = either_choices)
+    } else if (input$path_detection == "Both") {
+      selectInput("pathogens", "Pathogens", choices = both_choices)
+    } else {
+      stopApp("Problem when rendering pathogen list")
     }
   })
   
@@ -209,9 +243,40 @@ server <- function(input, output) {
   })
   
   
+  
+  ##############################
+  #### Create plots/tables #####
+  ##############################
+  
+  plotInput <- reactive({
+    ggplot(data = treat_tx_pathogen(), aes(x = visit, y = olink_value)) +
+      geom_jitter(height = 0, width = 0.1, alpha = 0.5) +
+      geom_hline(aes(yintercept = LOD_value), linetype = "dashed") +
+      facet_wrap(~protein)
+  })
+  
+  
+  ####################
+  ### Display Plot ###
+  ####################
+  output$plot <- renderPlot({
+    print(plotInput())
+  })
+  
 
   
+  #####################
+  ### Download plot ###
+  #####################
   
+  output$downloadPlot <- downloadHandler(
+    filename = function(){paste("shiny_plot",'.png',sep='')},
+    content = function(file){
+      ggsave(file, plot=plotInput())
+    })
+  
+  
+  output$table <- renderTable({head(treat_olink(), 50)})
   
 }
 
