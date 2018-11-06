@@ -6,7 +6,7 @@ library(tidyverse)
 ########################
 ### Source Functions ###
 ########################
-source("Olink_Expression_Functions.R")
+source("Olink_Exploration_Functions.R")
 
 #######################
 #### Read in Files ####
@@ -26,6 +26,8 @@ matched_choices <- list("All Samples" = "all_samples",
 visit_choices <- c("Visit_1", "Visit_4", "Visit_5")
 
 tx_choices <- c("RIF", "LEV", "AZI", "All")
+
+protein_choices <- unique(olink$protein)
 
 detection_choices <- c("Culture", "Taq", "Both", "Either")
 
@@ -73,6 +75,17 @@ ui <- fluidPage(
                  # Pathogen Choices
                  uiOutput("secondSelection"),
                  helpText("If", code("All"), ", then all samples included.")))),
+      
+      fluidRow(
+        h3("Proteins"),
+        
+        column(12, 
+               wellPanel(
+                 # Proteins of Interest
+                 radioButtons("proteins", "Proteins of interest:", choices = c("All", "Select Proteins"), selected = "All"),
+                 # Protein output
+                 uiOutput("protein_list"),
+                 helpText("Select proteins of interest")))),
       
       #sidebar width
       width = 4),
@@ -128,8 +141,75 @@ server <- function(input, output) {
     }
   })
   
+  #########################
+  ### Filter by Protein ###
+  #########################
+  
+  # Generate list of proteins if needed
+  output$protein_list <- renderUI({
+    if (input$proteins != "All"){
+      checkboxGroupInput("protein_list", "Proteins:", 
+                         choices = protein_choices, 
+                         selected = "All", 
+                         inline = TRUE)
+    }
+  })
+  
+  # Filter Olink for proteins of interest
+  olink_matched_protein <- reactive({
+    if(input$proteins == "All"){
+      olink_matched()
+    } else if (input$proteins != "All"){
+      olink_matched() %>%
+        filter(protein %in% input$protein_list)
+    } else {
+      stopApp("Error at protein filtering")
+    }
+  })
   
   
+  #######################
+  ### Treatment Group ###
+  #######################
+  
+  # Filter for treatment Group
+  treat_tx <- reactive({
+    if(input$tx_group == "AZI"){
+      filter(treat, Treatment == "AZI")
+      
+    } else if (input$tx_group == "RIF"){
+      filter(treat, Treatment == "RIF")
+      
+    } else if (input$tx_group == "LEV"){
+      filter(treat, Treatment == "LEV")
+      
+    } else {
+      return(treat)
+    }
+  })
+  
+  
+  ##########################
+  ### Filter by Pathogen ###
+  ##########################
+  
+  # Filter for pathogen of interest
+  treat_tx_pathogen <- reactive({
+    
+    # Include all patients
+    if (input$pathogens == "All"){
+      treat_tx()
+    } else {
+      
+      # Select for patients with specified pathogen
+      pathogen <- sym(input$pathogens)
+      treat_tx() %>%
+        filter(!!pathogen == "yes")
+    }
+  })
+  
+  
+
   
   
   
