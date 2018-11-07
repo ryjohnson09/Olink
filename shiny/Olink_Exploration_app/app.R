@@ -88,7 +88,40 @@ ui <- fluidPage(
                  # Proteins of Interest
                  radioButtons("proteins", "Proteins of interest:", choices = c("All", "Select Proteins"), selected = "All"),
                  # Protein output
-                 uiOutput("protein_list"))),
+                 uiOutput("protein_list")))),
+      
+      #######################
+      ### Plot Aesthetics ###
+      #######################
+      
+      fluidRow(
+        h3("Ordination and Aesthetics"),
+        
+        column(12, 
+               wellPanel(
+                 # X-axis
+                 selectInput("xaxis", 
+                             label = h4("X-Axis"),
+                             choices = c("visit", "LLS_severity", "Diarrhea_classification"), 
+                             selected = "visit"),
+                 # axis title size
+                 sliderInput("titleSize", 
+                             label = h4("Title Size"),
+                             min = 1, max = 25, value = 8),
+                 # axis text size
+                 sliderInput("labelSize", 
+                             label = h4("Axis Label Size"),
+                             min = 1, max = 25, value = 8),
+                 # point alpha
+                 sliderInput("pointAlpha", 
+                             label = h4("Point Transparency"),
+                             min = 0.1, max = 1, value = 0.8),
+                 # point size
+                 sliderInput("pointSize", 
+                             label = h4("Point Size"),
+                             min = 1, max = 15, value = 2))),
+      
+      
         br(),
         downloadButton('downloadPlot','Download Plot')),
       
@@ -133,6 +166,12 @@ server <- function(input, output) {
   
   rm(LOP_PLA_samples)
   
+  ###################################
+  ### Filter out missing proteins ###
+  ###################################
+  
+  olink <- olink %>%
+    filter(protein != "BDNF")
   
   ################################
   ### Matched Samples by Visit ###
@@ -143,7 +182,8 @@ server <- function(input, output) {
       matched_samples(olink, input$Visit_Number)
       
     } else {
-      olink
+      olink %>%
+        filter(visit %in% input$Visit_Number)
     }
   })
   
@@ -249,10 +289,27 @@ server <- function(input, output) {
   ##############################
   
   plotInput <- reactive({
-    ggplot(data = treat_tx_pathogen(), aes(x = visit, y = olink_value)) +
-      geom_jitter(height = 0, width = 0.1, alpha = 0.5) +
+    
+    
+    ggplot(data = treat_tx_pathogen(), aes_string(
+      
+      # X axis variable
+      x = input$xaxis, 
+      y = "olink_value")) +
+      
+      geom_jitter(height = 0, width = 0.1, 
+                  size = input$pointSize, 
+                  alpha = input$pointAlpha) +
       geom_hline(aes(yintercept = LOD_value), linetype = "dashed") +
-      facet_wrap(~protein)
+      facet_wrap(~protein) +
+      theme(
+        axis.text.x = element_text(size = input$labelSize, angle = 30, hjust = 1),
+        axis.text.y = element_text(size = input$labelSize),
+        axis.title.x = element_text(size = input$titleSize),
+        axis.title.y = element_text(size = input$titleSize),
+        strip.text.x = element_text(size = input$titleSize)
+      )
+      
   })
   
   
