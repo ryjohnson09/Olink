@@ -27,7 +27,7 @@ visit_choices <- c("Visit_1", "Visit_4", "Visit_5")
 
 tx_choices <- c("RIF", "LEV", "AZI", "All")
 
-protein_choices <- unique(olink$protein)
+protein_choices <- setdiff(unique(olink$protein), c("BDNF"))
 
 detection_choices <- c("Culture", "Taq", "Both", "Either")
 
@@ -102,16 +102,21 @@ ui <- fluidPage(
                  # X-axis
                  selectInput("xaxis", 
                              label = h4("X-Axis"),
-                             choices = c("visit", "LLS_severity", "Diarrhea_classification"), 
+                             choices = c("visit", "LLS_severity"), 
                              selected = "visit"),
+                 # Point color
+                 selectInput("pointColor",
+                             label = h4("Point Color"),
+                             choices = c("NULL", "visit", "LLS_severity"),
+                             selected = "NULL"),
                  # axis title size
                  sliderInput("titleSize", 
                              label = h4("Title Size"),
-                             min = 1, max = 25, value = 8),
+                             min = 1, max = 25, value = 15),
                  # axis text size
                  sliderInput("labelSize", 
                              label = h4("Axis Label Size"),
-                             min = 1, max = 25, value = 8),
+                             min = 1, max = 25, value = 10),
                  # point alpha
                  sliderInput("pointAlpha", 
                              label = h4("Point Transparency"),
@@ -152,19 +157,6 @@ server <- function(input, output) {
   treat <- treat %>%
     filter(STUDY_ID %in% olink$subject_ID)
   
-  #########################################
-  ### Remove samples from humichip that ###
-  ### are in the LOP & PLA tx groups ######
-  #########################################
-  
-  LOP_PLA_samples <- treat %>%
-    filter(Treatment %in% c("LOP", "PLA")) %>%
-    pull(STUDY_ID)
-  
-  olink <- olink %>%
-    filter(!subject_ID %in% LOP_PLA_samples)
-  
-  rm(LOP_PLA_samples)
   
   ###################################
   ### Filter out missing proteins ###
@@ -290,12 +282,12 @@ server <- function(input, output) {
   
   plotInput <- reactive({
     
-    
     ggplot(data = treat_tx_pathogen(), aes_string(
       
-      # X axis variable
+      # graph aes
       x = input$xaxis, 
-      y = "olink_value")) +
+      y = "olink_value",
+      color = input$pointColor)) +
       
       geom_jitter(height = 0, width = 0.1, 
                   size = input$pointSize, 
@@ -333,7 +325,7 @@ server <- function(input, output) {
     })
   
   
-  output$table <- renderTable({head(treat_olink(), 50)})
+  #output$table <- renderTable({head(treat_olink(), 50)})
   
 }
 
