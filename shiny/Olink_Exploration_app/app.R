@@ -1,5 +1,9 @@
 # Olink Expression App
 
+#!#!#!#!#!#!#!#!#!#!#!#!#!#!
+# TO DO
+# make categories for pathogen, severity and watery vs. dysentery/febrile
+
 library(shiny)
 library(tidyverse)
 
