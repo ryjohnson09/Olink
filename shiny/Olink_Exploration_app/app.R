@@ -68,6 +68,9 @@ ui <- fluidPage(
                  selectInput("tx_group", "Treatment Groups", choices = tx_choices, selected = "All"),
                  helpText("Select patients samples in specified treatment groups"),
                  
+                 # Febrile vs AWS
+                 selectInput("diarrhea_type", "Diarrhea Type:", choices = c("Both", "Febrile", "AWD"), selected = "Both"),
+                 
                  # Visit
                  checkboxGroupInput('Visit_Number', 'Visit:', choices = visit_choices, 
                                     selected = c("Visit_1", "Visit_4", "Visit_5"), inline = TRUE),
@@ -106,12 +109,12 @@ ui <- fluidPage(
                  # X-axis
                  selectInput("xaxis", 
                              label = h4("X-Axis"),
-                             choices = c("visit", "LLS_severity"), 
+                             choices = c("visit", "LLS_severity", "Diarrhea_classification"), 
                              selected = "visit"),
                  # Point color
                  selectInput("pointColor",
                              label = h4("Point Color"),
-                             choices = c("NULL", "visit", "LLS_severity"),
+                             choices = c("NULL", "visit", "LLS_severity", "Diarrhea_classification"),
                              selected = "NULL"),
                  # axis title size
                  sliderInput("titleSize", 
@@ -241,6 +244,25 @@ server <- function(input, output) {
   })
   
   
+  ##############################
+  ### Filter by Disease Type ###
+  ##############################
+  treat_tx_disease <- reactive({
+    if(input$diarrhea_type == "Febrile"){
+      filter(treat_tx(), Diarrhea_classification == "Febrile")
+      
+    } else if (input$diarrhea_type == "AWD"){
+      filter(treat_tx(), Diarrhea_classification == "AWD")
+      
+    } else if (input$diarrhea_type == "Both"){
+      treat_tx()
+      
+    } else {
+      stopApp("Error when filtering by Disease Type")
+    }
+  })
+  
+  
   #######################################
   ### Render pathogen detection list ###
   #######################################
@@ -268,12 +290,12 @@ server <- function(input, output) {
     
     # Include all patients
     if (input$pathogens == "All"){
-      treat_tx()
+      treat_tx_disease()
     } else {
       
       # Select for patients with specified pathogen
       pathogen <- sym(input$pathogens)
-      treat_tx() %>%
+      treat_tx_disease() %>%
         filter(!!pathogen == "yes")
     }
   })
@@ -329,7 +351,7 @@ server <- function(input, output) {
     })
   
   
-  #output$table <- renderTable({head(treat_olink(), 50)})
+  #output$table <- renderTable({head(treat_tx(), 50)})
   
 }
 
